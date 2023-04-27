@@ -1,13 +1,17 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- <meta
-      name="viewport"
-      content="initial-scale=1 maximum-scale=1 user-scalable=0 minimal-ui shrink-to-fit=no"
-    /> -->
-    <title>Test</title>
+    <title>Turn Based</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-    <!-- <link rel="stylesheet" href="./css/style.css" /> -->
+    <style>
+      html,
+      body {
+        margin: 0 0;
+      }
+      #game {
+        text-align: center;
+      }
+    </style>
     <script>
       var isMobile = false; //initiate as false
       // device detection
@@ -61,6 +65,8 @@
     };
 
     var game = new Phaser.Game(gameConfig);
+    var playerID = "";
+    var players = [];
 
     function preload() {
       this.load.image("flower", "assets/flower-exo.png");
@@ -68,50 +74,68 @@
     }
 
     function create() {
+      var that = this;
+
       var socket = io();
 
-      socket.on("chat", function (msg) {});
+      socket.on("connect", () => {
+        //set player id
+        playerID = socket.id;
+      });
 
-      this.source = this.physics.add.image(100, 300, "flower");
+      socket.on("update", function (data) {
+        console.log("SOCKET:", data);
 
-      this.target = new Phaser.Math.Vector2();
+        switch (data.action) {
+          case "player_joined":
+            //clear array
+            players.map((p) => p.sprite.destroy());
+            players = [];
 
-      const cursor = this.add.image(0, 0, "cursor").setVisible(false);
+            //create players
+            data.players.map((p) => {
+              var sprite = that.physics.add
+                .image(p.data.position.x, p.data.position.y, "flower")
+                .setBounce(1, 1)
+                .setCollideWorldBounds(true);
+              players.push({ id: p.id, sprite });
 
-      this.distanceText = this.add.text(10, 10, "Click to set target", {
-        fill: "#00ff00",
+              if (p.id === playerID) {
+                sprite.setTint(0xff0000);
+              }
+            });
+
+            break;
+          case "move_player":
+            const player = players.find((p) => p.id === data.id);
+            player.sprite.x = data.x;
+            player.sprite.y = data.y;
+            break;
+          case "player_left":
+            //find the player who left
+            const a = players.map((p) => p.id);
+            const b = data.players.map((p) => p.id);
+            const c = a.filter(function (v) {
+              return !b.includes(v);
+            });
+            console.log(c);
+            const index = players.findIndex((p) => p.id === c[0]);
+            players[index].sprite.destroy();
+            players.splice(index, 1);
+            break;
+        }
       });
 
       this.input.on("pointerdown", (pointer) => {
-        this.target.x = pointer.x;
-        this.target.y = pointer.y;
-
-        // Move at 200 px/s:
-        this.physics.moveToObject(this.source, this.target, 200);
-
-        cursor.copyPosition(this.target).setVisible(true);
+        //send to server that player moved
+        socket.emit("player_move", {
+          id: playerID,
+          x: pointer.x,
+          y: pointer.y,
+        });
       });
     }
 
-    function update() {
-      //  4 is our distance tolerance, i.e. how close the source can get to the target
-      //  before it is considered as being there. The faster it moves, the more tolerance is required.
-      const tolerance = 4;
-
-      // const tolerance = 200 * 1.5 / this.game.loop.targetFps;
-
-      const distance = Phaser.Math.Distance.BetweenPoints(
-        this.source,
-        this.target
-      );
-
-      if (this.source.body.speed > 0) {
-        this.distanceText.setText(`Distance: ${distance}`);
-
-        if (distance < tolerance) {
-          this.source.body.reset(this.target.x, this.target.y);
-        }
-      }
-    }
+    function update() {}
   </script>
 </html>
