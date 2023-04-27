@@ -18,7 +18,19 @@ module.exports = {
    * This gives you an opportunity to set up your data model,
    * run jobs, or perform some special logic.
    */
-  bootstrap(/*{ strapi }*/) {
+  async bootstrap(/*{ strapi }*/) {
+    console.log("FIRST FUNCTION CALLED");
+
+    const entry = await strapi.db
+      .query("plugin::users-permissions.user")
+      .findOne({
+        select: ["username"],
+        where: { id: 1 },
+        populate: { replays: { populate: { actions: true } } },
+      });
+
+    console.log("Player", entry.replays[0].actions);
+
     io.on("connection", async (socket) => {
       console.log(`User[${socket.id}] connected`);
 
