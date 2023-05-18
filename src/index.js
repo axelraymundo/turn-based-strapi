@@ -18,8 +18,17 @@ module.exports = {
    * This gives you an opportunity to set up your data model,
    * run jobs, or perform some special logic.
    */
-  async bootstrap(/*{ strapi }*/) {
+  async bootstrap({ strapi }) {
     console.log("FIRST FUNCTION CALLED");
+
+    strapi.io = io;
+
+    //FOR GAME SCHEDULE
+    io.on("connection", async (socket) => {
+      console.log(`User[${socket.id}] connected`);
+
+      // strapi.io.emit("onchange", { action: "server updated" });
+    });
 
     // const entry = await strapi.db
     //   .query("plugin::users-permissions.user")
@@ -31,6 +40,7 @@ module.exports = {
 
     // console.log("Player", entry.replays[0].actions);
 
+    /*
     io.on("connection", async (socket) => {
       console.log(`User[${socket.id}] connected`);
 
@@ -73,6 +83,9 @@ module.exports = {
 
         io.emit("update", { action: "player_left", players });
       });
+
+    
     });
+      */
   },
 };
